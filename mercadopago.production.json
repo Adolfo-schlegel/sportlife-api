@@ -1,0 +1,32 @@
+{
+  "_instructions": "Replace all placeholder values below with your real MercadoPago credentials. Get them at: https://www.mercadopago.com.ar/developers/panel",
+  
+  "MercadoPago": {
+    "AccessToken": "APP_USR-XXXXXXXXXXXX-XXXXXX-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX-XXXXXXXXX",
+    "_AccessToken_note": "Production Access Token from MP Developer Panel > Credentials > Production",
+
+    "PublicKey": "APP_USR-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
+    "_PublicKey_note": "Production Public Key from MP Developer Panel > Credentials > Production",
+
+    "WebhookSecret": "YOUR_WEBHOOK_SECRET_HERE",
+    "_WebhookSecret_note": "Generated when you configure a webhook in MP Developer Panel > Webhooks",
+
+    "NotificationUrl": "https://tmntech.ddns.net/sportlife-api/webhooks/mercadopago",
+    "_NotificationUrl_note": "Must be publicly accessible HTTPS URL. Register this in MP Developer Panel > Webhooks",
+
+    "SuccessUrl": "https://tmntech.ddns.net/sportlife/payment/success",
+    "FailureUrl": "https://tmntech.ddns.net/sportlife/payment/failure",
+    "PendingUrl": "https://tmntech.ddns.net/sportlife/payment/pending"
+  },
+
+  "_steps_to_go_live": [
+    "1. Create account at https://www.mercadopago.com.ar",
+    "2. Go to https://www.mercadopago.com.ar/developers/panel",
+    "3. Create application -> get Production Access Token and Public Key",
+    "4. Register webhook URL: https://tmntech.ddns.net/sportlife-api/webhooks/mercadopago",
+    "5. Select 'payment' topic for webhooks",
+    "6. Copy WebhookSecret shown during webhook setup",
+    "7. Replace values in appsettings.json on the API server",
+    "8. Restart the Docker container: docker restart sportlife-api"
+  ]
+}
