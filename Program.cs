@@ -34,11 +34,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// HttpClient for MercadoPago
+// HttpClient for MercadoPago (Authorization header set per-request in PaymentService)
 builder.Services.AddHttpClient("MercadoPago", client =>
 {
-    var accessToken = builder.Configuration["MercadoPago:AccessToken"];
-    client.DefaultRequestHeaders.Add("Authorization", $"Bearer {accessToken}");
     client.DefaultRequestHeaders.Add("Accept", "application/json");
 });
 

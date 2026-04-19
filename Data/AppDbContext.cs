@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<MembershipPlan> MembershipPlans => Set<MembershipPlan>();
     public DbSet<Membership> Memberships => Set<Membership>();
     public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<MercadoPagoConfig> MercadoPagoConfigs => Set<MercadoPagoConfig>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -56,6 +57,23 @@ public class AppDbContext : DbContext
             e.Property(m => m.Status).HasColumnName("status");
             e.Property(m => m.CreatedAt).HasColumnName("created_at");
             e.HasOne(m => m.Plan).WithMany(p => p.Memberships).HasForeignKey(m => m.PlanId);
+        });
+
+        // MercadoPagoConfig
+        modelBuilder.Entity<MercadoPagoConfig>(e =>
+        {
+            e.ToTable("mercadopago_config");
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Id).HasColumnName("id");
+            e.Property(c => c.AccessToken).HasColumnName("access_token");
+            e.Property(c => c.PublicKey).HasColumnName("public_key");
+            e.Property(c => c.WebhookSecret).HasColumnName("webhook_secret");
+            e.Property(c => c.NotificationUrl).HasColumnName("notification_url");
+            e.Property(c => c.SuccessUrl).HasColumnName("success_url");
+            e.Property(c => c.FailureUrl).HasColumnName("failure_url");
+            e.Property(c => c.PendingUrl).HasColumnName("pending_url");
+            e.Property(c => c.IsTestMode).HasColumnName("is_test_mode");
+            e.Property(c => c.UpdatedAt).HasColumnName("updated_at");
         });
 
         // Payments

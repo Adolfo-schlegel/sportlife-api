@@ -45,8 +45,13 @@ public class WebhooksController : ControllerBase
                 return Ok();
 
             // Fetch payment details from MP
+            var dbConfig = await _db.MercadoPagoConfigs.FirstOrDefaultAsync();
+            var accessToken = dbConfig?.AccessToken ?? _config["MercadoPago:AccessToken"] ?? "";
+
             var client = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>().CreateClient("MercadoPago");
-            var response = await client.GetAsync($"https://api.mercadopago.com/v1/payments/{paymentId}");
+            var mpRequest = new HttpRequestMessage(HttpMethod.Get, $"https://api.mercadopago.com/v1/payments/{paymentId}");
+            mpRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+            var response = await client.SendAsync(mpRequest);
 
             if (!response.IsSuccessStatusCode)
             {
