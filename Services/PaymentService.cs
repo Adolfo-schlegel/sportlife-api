@@ -46,6 +46,7 @@ public class PaymentService : IPaymentService
 
     public async Task<PreferenceResponse> CreatePreference(CreatePreferenceRequest req)
     {
+        var dbConfig = await _db.MercadoPagoConfigs.FirstOrDefaultAsync();
         var accessToken = await GetAccessTokenAsync();
         var (notificationUrl, successUrl, failureUrl, pendingUrl) = await GetUrlsAsync();
 
@@ -98,7 +99,11 @@ public class PaymentService : IPaymentService
         using var doc = JsonDocument.Parse(responseBody);
         var root = doc.RootElement;
         var preferenceId = root.GetProperty("id").GetString() ?? "";
-        var initPoint = root.GetProperty("init_point").GetString() ?? "";
+
+        var isSandbox = dbConfig?.IsTestMode ?? _config.GetValue<bool>("MercadoPago:Sandbox");
+        var initPoint = isSandbox
+            ? root.GetProperty("sandbox_init_point").GetString() ?? ""
+            : root.GetProperty("init_point").GetString() ?? "";
 
         return new PreferenceResponse(preferenceId, initPoint);
     }
