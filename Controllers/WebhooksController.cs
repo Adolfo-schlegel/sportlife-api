@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using SportLife.Data;
 using SportLife.DTOs;
 using SportLife.Services;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 
@@ -25,9 +26,46 @@ public class WebhooksController : ControllerBase
         _config = config;
     }
 
+    private bool ValidateSignature(string? xSignature, string? xRequestId, string? dataId)
+    {
+        var secret = _config["MercadoPago:WebhookSecret"];
+        if (string.IsNullOrEmpty(secret) || string.IsNullOrEmpty(xSignature))
+            return true; // skip validation if not configured
+
+        var parts = xSignature.Split(',');
+        string? ts = null, v1 = null;
+        foreach (var part in parts)
+        {
+            var kv = part.Trim().Split('=', 2);
+            if (kv.Length == 2 && kv[0] == "ts") ts = kv[1];
+            if (kv.Length == 2 && kv[0] == "v1") v1 = kv[1];
+        }
+
+        if (ts == null || v1 == null) return false;
+
+        var manifest = $"id:{dataId};request-id:{xRequestId};ts:{ts};";
+        var hash = HMACSHA256.HashData(Encoding.UTF8.GetBytes(secret), Encoding.UTF8.GetBytes(manifest));
+        var computed = Convert.ToHexString(hash).ToLower();
+
+        return computed == v1;
+    }
+
     [HttpPost("mercadopago")]
     public async Task<IActionResult> MercadoPago([FromBody] JsonElement payload)
     {
+        var xSignature = Request.Headers["x-signature"].FirstOrDefault();
+        var xRequestId = Request.Headers["x-request-id"].FirstOrDefault();
+
+        string? dataId = null;
+        if (payload.TryGetProperty("data", out var dataElCheck) && dataElCheck.TryGetProperty("id", out var idElCheck))
+            dataId = idElCheck.GetString();
+
+        if (!ValidateSignature(xSignature, xRequestId, dataId))
+        {
+            _logger.LogWarning("Invalid MercadoPago webhook signature");
+            return Unauthorized();
+        }
+
         _logger.LogInformation("MercadoPago webhook received: {Payload}", payload.ToString());
 
         try
