@@ -19,6 +19,31 @@ public record CreatePaymentPreferenceRequest(Guid PlanId);
 public record CreatePreferenceRequest(string Title, decimal Amount, Guid PlanId, Guid UserId, string UserEmail);
 public record PreferenceResponse(string PreferenceId, string InitPoint);
 
+public record ProcessBrickPaymentRequest(
+    Guid PlanId,
+    string Token,
+    string PaymentMethodId,
+    int Installments,
+    string? IssuerId,
+    string IdentificationType,
+    string IdentificationNumber
+);
+
+public record ProcessPaymentRequest(
+    string Token,
+    string PaymentMethodId,
+    int Installments,
+    string? IssuerId,
+    decimal Amount,
+    string Email,
+    string IdentificationType,
+    string IdentificationNumber,
+    string ExternalReference,
+    string Description
+);
+
+public record ProcessPaymentResponse(string MercadoPagoPaymentId, string Status);
+
 public record WebhookPayload(string? Type, string? Action, WebhookData? Data);
 public record WebhookData(string? Id);
 

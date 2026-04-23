@@ -16,11 +16,23 @@ public class PaymentsController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly IPaymentService _paymentService;
+    private readonly IMembershipService _membershipService;
 
-    public PaymentsController(AppDbContext db, IPaymentService paymentService)
+    public PaymentsController(AppDbContext db, IPaymentService paymentService, IMembershipService membershipService)
     {
         _db = db;
         _paymentService = paymentService;
+        _membershipService = membershipService;
+    }
+
+    [HttpGet("public-config")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicConfig([FromServices] IConfiguration config)
+    {
+        var dbConfig = await _db.MercadoPagoConfigs.FirstOrDefaultAsync();
+        var publicKey = dbConfig?.PublicKey ?? config["MercadoPago:PublicKey"] ?? "";
+        var isSandbox = dbConfig?.IsTestMode ?? config.GetValue<bool>("MercadoPago:Sandbox");
+        return Ok(new { publicKey, isSandbox });
     }
 
     [HttpGet]
@@ -90,6 +102,44 @@ public class PaymentsController : ControllerBase
             payment.PreferenceId = preference.PreferenceId;
             await _db.SaveChangesAsync();
             return Ok(preference);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("process")]
+    public async Task<IActionResult> Process([FromBody] ProcessBrickPaymentRequest req)
+    {
+        var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var userEmail = User.FindFirstValue(ClaimTypes.Email)!;
+
+        var plan = await _db.MembershipPlans.FindAsync(req.PlanId);
+        if (plan == null || !plan.Active)
+            return BadRequest(new { message = "Plan no encontrado o inactivo" });
+
+        var paymentRequest = new ProcessPaymentRequest(
+            Token: req.Token,
+            PaymentMethodId: req.PaymentMethodId,
+            Installments: req.Installments,
+            IssuerId: req.IssuerId,
+            Amount: plan.Price,
+            Email: userEmail,
+            IdentificationType: req.IdentificationType,
+            IdentificationNumber: req.IdentificationNumber,
+            ExternalReference: $"{userId}|{req.PlanId}",
+            Description: plan.Name
+        );
+
+        try
+        {
+            var result = await _paymentService.ProcessPayment(paymentRequest);
+
+            if (result.Status == "approved")
+                await _membershipService.ActivateMembership(userId, req.PlanId, result.MercadoPagoPaymentId);
+
+            return Ok(new { status = result.Status, paymentId = result.MercadoPagoPaymentId });
         }
         catch (Exception ex)
         {

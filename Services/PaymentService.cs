@@ -108,6 +108,64 @@ public class PaymentService : IPaymentService
         return new PreferenceResponse(preferenceId, initPoint);
     }
 
+    public async Task<ProcessPaymentResponse> ProcessPayment(ProcessPaymentRequest req)
+    {
+        var accessToken = await GetAccessTokenAsync();
+
+        var payload = new
+        {
+            token = req.Token,
+            payment_method_id = req.PaymentMethodId,
+            installments = req.Installments,
+            issuer_id = req.IssuerId,
+            transaction_amount = req.Amount,
+            description = req.Description,
+            external_reference = req.ExternalReference,
+            payer = new
+            {
+                email = req.Email,
+                identification = new
+                {
+                    type = req.IdentificationType,
+                    number = req.IdentificationNumber
+                }
+            }
+        };
+
+        var options = new System.Text.Json.JsonSerializerOptions
+        {
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.SnakeCaseLower
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(payload, options);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var httpClient = _httpClientFactory.CreateClient("MercadoPago");
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.mercadopago.com/v1/payments")
+        {
+            Content = content
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+
+        var response = await httpClient.SendAsync(request);
+        var body = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("MP ProcessPayment error: {StatusCode} - {Body}", response.StatusCode, body);
+            throw new Exception($"Error procesando pago: {response.StatusCode} - {body}");
+        }
+
+        using var doc = JsonDocument.Parse(body);
+        var root = doc.RootElement;
+        var status = root.GetProperty("status").GetString() ?? "unknown";
+        var mpPaymentId = root.GetProperty("id").GetInt64().ToString();
+
+        _logger.LogInformation("MP payment processed: id={Id} status={Status}", mpPaymentId, status);
+        return new ProcessPaymentResponse(mpPaymentId, status);
+    }
+
     public async Task<dynamic?> GetPayment(string paymentId)
     {
         var accessToken = await GetAccessTokenAsync();
