@@ -26,9 +26,8 @@ public class WebhooksController : ControllerBase
         _config = config;
     }
 
-    private bool ValidateSignature(string? xSignature, string? xRequestId, string? dataId)
+    private bool ValidateSignature(string? xSignature, string? xRequestId, string? dataId, string? secret)
     {
-        var secret = _config["MercadoPago:WebhookSecret"];
         if (string.IsNullOrEmpty(secret) || string.IsNullOrEmpty(xSignature))
             return true; // skip validation if not configured
 
@@ -60,7 +59,10 @@ public class WebhooksController : ControllerBase
         if (payload.TryGetProperty("data", out var dataElCheck) && dataElCheck.TryGetProperty("id", out var idElCheck))
             dataId = idElCheck.GetString();
 
-        if (!ValidateSignature(xSignature, xRequestId, dataId))
+        var dbConf = await _db.MercadoPagoConfigs.FirstOrDefaultAsync();
+        var webhookSecret = dbConf?.WebhookSecret ?? _config["MercadoPago:WebhookSecret"];
+
+        if (!ValidateSignature(xSignature, xRequestId, dataId, webhookSecret))
         {
             _logger.LogWarning("Invalid MercadoPago webhook signature");
             return Unauthorized();
@@ -83,8 +85,7 @@ public class WebhooksController : ControllerBase
                 return Ok();
 
             // Fetch payment details from MP
-            var dbConfig = await _db.MercadoPagoConfigs.FirstOrDefaultAsync();
-            var accessToken = dbConfig?.AccessToken ?? _config["MercadoPago:AccessToken"] ?? "";
+            var accessToken = dbConf?.AccessToken ?? _config["MercadoPago:AccessToken"] ?? "";
 
             var client = HttpContext.RequestServices.GetRequiredService<IHttpClientFactory>().CreateClient("MercadoPago");
             var mpRequest = new HttpRequestMessage(HttpMethod.Get, $"https://api.mercadopago.com/v1/payments/{paymentId}");
