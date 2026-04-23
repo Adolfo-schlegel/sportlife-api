@@ -86,4 +86,30 @@ public class MembershipsController : ControllerBase
 
         return Ok(new DashboardStats(totalMembers, activeMembers, expiredMembers, monthlyRevenue, totalPayments));
     }
+
+    [HttpGet("expiring")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> GetExpiring([FromQuery] int days = 7)
+    {
+        var now = DateTime.UtcNow;
+        var limit = now.AddDays(days);
+
+        var expiring = await _db.Memberships
+            .Include(m => m.User)
+            .Include(m => m.Plan)
+            .Where(m => m.Status == "active" && m.ExpiresAt.HasValue && m.ExpiresAt.Value > now && m.ExpiresAt.Value <= limit)
+            .OrderBy(m => m.ExpiresAt)
+            .Select(m => new ExpiringMembershipDto(
+                m.Id,
+                m.UserId,
+                m.User!.Name,
+                m.PlanId!.Value,
+                m.Plan!.Name,
+                m.ExpiresAt!.Value,
+                (int)(m.ExpiresAt!.Value - now).TotalDays
+            ))
+            .ToListAsync();
+
+        return Ok(expiring);
+    }
 }

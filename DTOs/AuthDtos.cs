@@ -48,3 +48,7 @@ public record WebhookPayload(string? Type, string? Action, WebhookData? Data);
 public record WebhookData(string? Id);
 
 public record DashboardStats(int TotalMembers, int ActiveMembers, int ExpiredMembers, decimal MonthlyRevenue, int TotalPayments);
+
+public record ManualPaymentRequest(Guid UserId, Guid PlanId, string PaymentMethod, string? Notes, DateTime? Date);
+public record ManualPaymentResponse(Guid PaymentId, Guid MembershipId, string Status);
+public record ExpiringMembershipDto(Guid MembershipId, Guid UserId, string UserName, Guid PlanId, string PlanName, DateTime ExpiresAt, int DaysLeft);

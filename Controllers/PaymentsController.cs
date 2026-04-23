@@ -146,4 +146,45 @@ public class PaymentsController : ControllerBase
             return StatusCode(500, new { message = ex.Message });
         }
     }
+
+    [HttpPost("manual")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> Manual([FromBody] ManualPaymentRequest req)
+    {
+        var plan = await _db.MembershipPlans.FindAsync(req.PlanId);
+        if (plan == null || !plan.Active)
+            return BadRequest(new { message = "Plan no encontrado o inactivo" });
+
+        var user = await _db.Users.FindAsync(req.UserId);
+        if (user == null)
+            return BadRequest(new { message = "Usuario no encontrado" });
+
+        var manualId = $"MANUAL-{Guid.NewGuid()}";
+        var paymentDate = req.Date?.ToUniversalTime() ?? DateTime.UtcNow;
+
+        var payment = new Payment
+        {
+            UserId = req.UserId,
+            PlanId = req.PlanId,
+            Amount = plan.Price,
+            Status = "pending",
+            PaymentMethod = req.PaymentMethod,
+            Notes = req.Notes,
+            CreatedAt = paymentDate,
+        };
+        _db.Payments.Add(payment);
+        await _db.SaveChangesAsync();
+
+        try
+        {
+            var membership = await _membershipService.ActivateMembership(req.UserId, req.PlanId, manualId);
+            return Ok(new ManualPaymentResponse(payment.Id, membership.Id, "approved"));
+        }
+        catch (Exception ex)
+        {
+            _db.Payments.Remove(payment);
+            await _db.SaveChangesAsync();
+            return StatusCode(500, new { message = ex.Message });
+        }
+    }
 }
