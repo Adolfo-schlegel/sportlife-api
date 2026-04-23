@@ -147,6 +147,7 @@ public class PaymentService : IPaymentService
             Content = content
         };
         request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+        request.Headers.Add("X-Idempotency-Key", Guid.NewGuid().ToString());
 
         var response = await httpClient.SendAsync(request);
         var body = await response.Content.ReadAsStringAsync();
