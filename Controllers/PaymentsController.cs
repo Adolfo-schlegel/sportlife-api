@@ -136,7 +136,7 @@ public class PaymentsController : ControllerBase
         {
             var result = await _paymentService.ProcessPayment(paymentRequest);
 
-            if (result.Status == "approved")
+            if (result.Status == "approved" || result.Status == "in_process")
                 await _membershipService.ActivateMembership(userId, req.PlanId, result.MercadoPagoPaymentId);
 
             return Ok(new { status = result.Status, paymentId = result.MercadoPagoPaymentId });
